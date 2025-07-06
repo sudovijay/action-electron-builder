@@ -1,4 +1,4 @@
-name: Electron Builder Action (PNPM)
+name: Electron Builder (PNPM Maintained)
 author: YanJobs & Samuel Meuli & Vijay
 description: GitHub Action for building and releasing Electron apps
 
