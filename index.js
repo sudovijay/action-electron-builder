@@ -79,10 +79,24 @@ const runAction = () => {
 
 	const pkgJsonPath = join(pkgRoot, "package.json");
 	const pkgLockPath = join(pkgRoot, "package-lock.json");
+	const pnpmLockPath = join(pkgRoot, "pnpm-lock.yaml");
+	const yarnLockPath = join(pkgRoot, "yarn.lock");
 
-	// Determine whether NPM should be used to run commands (instead of Yarn, which is the default)
-	const useNpm = existsSync(pkgLockPath);
-	log(`Will run ${useNpm ? "NPM" : "Yarn"} commands in directory "${pkgRoot}"`);
+	// Determine which package manager to use
+	const hasPnpmLock = existsSync(pnpmLockPath);
+	const hasNpmLock = existsSync(pkgLockPath);
+	const hasYarnLock = existsSync(yarnLockPath);
+
+	// Priority: pnpm > npm > yarn
+	const usePnpm = hasPnpmLock;
+	const useNpm = !usePnpm && hasNpmLock;
+
+	// Log which package manager will be used
+	let packageManager = "Yarn";
+	if (usePnpm) packageManager = "pnpm";
+	else if (useNpm) packageManager = "NPM";
+
+	log(`Will run ${packageManager} commands in directory "${pkgRoot}"`);
 
 	// Make sure `package.json` file exists
 	if (!existsSync(pkgJsonPath)) {
@@ -105,15 +119,18 @@ const runAction = () => {
 	// Disable console advertisements during install phase
 	setEnv("ADBLOCK", true);
 
-	log(`Installing dependencies using ${useNpm ? "NPM" : "Yarn"}…`);
-	run(useNpm ? "npm install" : "yarn", pkgRoot);
+	log(`Installing dependencies using ${usePnpm ? "pnpm" : (useNpm ? "NPM" : "Yarn")}…`);
+	run(usePnpm ? "pnpm install" : (useNpm ? "npm install" : "yarn"), pkgRoot);
 
 	// Run NPM build script if it exists
 	if (skipBuild) {
 		log("Skipping build script because `skip_build` option is set");
 	} else {
 		log("Running the build script…");
-		if (useNpm) {
+		if (usePnpm) {
+			// Handle pnpm similarly to npm
+			run(`pnpm run ${buildScriptName} --if-present`, pkgRoot);
+		} else if (useNpm) {
 			run(`npm run ${buildScriptName} --if-present`, pkgRoot);
 		} else {
 			// TODO: Use `yarn run ${buildScriptName} --if-present` once supported
@@ -130,7 +147,7 @@ const runAction = () => {
 	for (let i = 0; i < maxAttempts; i += 1) {
 		try {
 			run(
-				`${useNpm ? "npx --no-install" : "yarn run"} ${cmd} --${platform} ${
+				`${usePnpm ? "pnpm exec" : (useNpm ? "npx --no-install" : "yarn run")} ${cmd} --${platform} ${
 					release ? "--publish always" : ""
 				} ${(platform == "mac") ? "--arm64 --x64" : ""}	${args}`,
 				appRoot,
