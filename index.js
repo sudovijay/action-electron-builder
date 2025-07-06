@@ -128,8 +128,11 @@ const runAction = () => {
 	} else {
 		log("Running the build script…");
 		if (usePnpm) {
-			// Handle pnpm similarly to npm
-			run(`pnpm run ${buildScriptName} --if-present`, pkgRoot);
+			// pnpm doesn't support --if-present flag, so we need to check if the script exists
+			const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
+			if (pkgJson.scripts && pkgJson.scripts[buildScriptName]) {
+				run(`pnpm run ${buildScriptName}`, pkgRoot);
+			}
 		} else if (useNpm) {
 			run(`npm run ${buildScriptName} --if-present`, pkgRoot);
 		} else {
