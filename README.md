@@ -27,25 +27,46 @@ GitHub Actions allows you to build your app on macOS, Windows and Linux without 
          matrix:
            os: [macos-latest, ubuntu-latest, windows-latest]
 
-       steps:
-         - name: Check out Git repository
-           uses: actions/checkout@v1
+    steps:
+      # Windows fix. See https://github.com/actions/checkout/issues/226
+      - run: git config --global core.autocrlf false
 
-         - name: Install Node.js, NPM and Yarn
-           uses: actions/setup-node@v1
-           with:
-             node-version: 16
+      - name: Check out Git repository
+        uses: actions/checkout@v4
 
-         - name: Build/release Electron app
-           uses: sudovijay/action-electron-builder@v1.7.4
-           with:
-             # GitHub token, automatically provided to the action
-             # (No need to define this secret in the repo settings)
-             github_token: ${{ secrets.github_token }}
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-             # If the commit is tagged with a version (e.g. "v1.0.0"),
-             # release the app after building
-             release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      - name: Install Node.js, NPM and pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup pnpm with hoisted dependencies
+        shell: bash # Explicitly use bash for consistency
+        run: |
+          echo "shamefully-hoist=true" > .npmrc
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build/release Electron app
+        uses: sudovijay/action-electron-builder@v1.7.4
+        with:
+          # GitHub token, automatically provided to the action
+          # (No need to define this secret in the repo settings)
+          github_token: ${{ secrets.github_token }}
+
+          # sign mac app
+          mac_certs: ${{ secrets.mac_certs }}
+          mac_certs_password: ${{ secrets.mac_certs_password }}
+
+          # If the commit is tagged with a version (e.g. "v1.0.0"),
+          # release the app after building
+          release: ${{ env.is_tag == 'true' }}
    ```
 - On macOS it will also create an arm release for your M1/M2 users
 ## Usage
