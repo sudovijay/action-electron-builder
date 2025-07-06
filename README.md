@@ -45,10 +45,15 @@ GitHub Actions allows you to build your app on macOS, Windows and Linux without 
           node-version: 20
           cache: 'pnpm'
 
-      - name: Setup pnpm with hoisted dependencies
-        shell: bash # Explicitly use bash for consistency
+      - name: Update pnpm configuration for hoisted dependencies
+        shell: bash
         run: |
-          echo "shamefully-hoist=true" > .npmrc
+          if ! grep -q "shamefully-hoist=true" .npmrc; then
+            echo "shamefully-hoist=true" >> .npmrc
+          fi
+          if ! grep -q "node-linker=hoisted" .npmrc; then
+            echo "node-linker=hoisted" >> .npmrc
+          fi
 
       - name: Install dependencies
         run: pnpm install
